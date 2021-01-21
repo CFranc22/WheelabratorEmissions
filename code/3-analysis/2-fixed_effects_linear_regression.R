@@ -195,6 +195,9 @@ model_fit3b <-
   )
 summary(model_fit3b)
 
+# still have not worked out bugs when it comes to using the tidy function, and 
+# all subseqquent code below
+
 model3_results <- tidy(model_fit3a, conf.int = TRUE, conf.level = 0.95, fe=TRUE)
 
 broom.tidy(model_fit3a)
