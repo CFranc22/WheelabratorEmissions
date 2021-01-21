@@ -1,0 +1,25 @@
+# Looking at Bmore NEI data
+
+```{r}
+library(readxl)
+library(dplyr)
+
+```
+
+
+```{r}
+Bmore_NEI_2017 <- read_excel("~/JHU/FA-20/Capstone/data/raw/Bmore_NEI_2017.xlsx")
+View(Bmore_NEI_2017)
+
+```
+
+# selecting out wheelabrator and curtis bay incinerator sites
+
+```{r}
+wheel <- Bmore_NEI_2017 %>% dplyr::select("site name", "site latitude", "site longitude", 
+                                          "unit type", "pollutant code", "pollutant desc",
+                                          "pollutant type(s)", "total emissions", "emissions uom")
+
+
+```
+
