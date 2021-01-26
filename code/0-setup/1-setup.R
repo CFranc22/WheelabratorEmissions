@@ -23,6 +23,6 @@
                         +datum=NAD83 +no_defs +towgs84=0,0,0")  
     
     # projected CRS, for creating buffers
-    crs_projected <- st_crs(stack("C:\\Users\\Christina\\Documents\\JHU\\FA-20\\Capstone\\bmore-air-quality-incinerator\\data\\raw\\narr\\air_temp_daily_mean\\air.sfc.2018.nc"))
+    crs_projected <- st_crs(stack("data/raw/narr/air_temp_daily_mean/air.sfc.2018.nc"))
    
 # end #
