@@ -21,7 +21,6 @@ narr_pblh       <- readRDS("data/interim/narr_pblh.rds")
 
 #.........................................................................
 
-# make a dataset of monitor-days monitors > 15 km away the nearest new well
 search_monitor_day_unexp <- search_pollutants_daily %>%
   as_tibble() %>%
   dplyr::select(box_ID, date) %>%
@@ -69,19 +68,7 @@ data_analytic2 <- data_analytic %>%
   rename(annuli_9to10km = upwind_from_search_monitors_9to10km) %>% 
   rename(annuli_10to11km = upwind_from_search_monitors_10to11km) %>% 
   rename(annuli_11to12km = upwind_from_search_monitors_11to12km)  
-#drop_na(pm2.5_concentration_daily_mean)
-#drop_na(o3_concentration_daily_max)
 
-
-
-##------------------------------------------------------------------------------
-## 
-
-# visualize the distribution of 'pm2.5_concentration_daily_mean'
-# make a histogram of month-years to see if we're well represented temporally
-# see how many monitor-days we have within each air basin
-# look at the distribution of precip
-# explore the exposure data to get a better sense of how to factor it into our FELM
 
 
 ##------------------------------------------------------------------------------
