@@ -90,17 +90,17 @@ crs_projected <- st_crs(air.2018.raster)
 
 ## creating SEARCH dataset (code available in separate .R file)
 
-search_sites <- read.csv("data/interim/box_sites_coords.csv") %>%
+monitor_sites <- read.csv("data/interim/thesis_monitor_sites_coords.csv") %>%
  dplyr::select(box_ID, latitude, longitude)
 
 ## creating the SEARCH wireless multipollutant monitor site SF object, 
 ## datum/epsg = WGS 84 in the same projection as the narr datasets
 
-search_sites_sf <- search_sites %>% 
+monitor_sites_sf <- monitor_sites %>% 
   dplyr::select(box_ID, latitude, longitude) %>% 
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
 
-search_sites_sf_lcc = st_transform(search_sites_sf, crs_projected)
+monitor_sites_sf_lcc = st_transform(monitor_sites_sf, crs_projected)
 
 ##############################################################################
 # Creating RDS files for each NARR raster dataset
@@ -110,10 +110,10 @@ search_sites_sf_lcc = st_transform(search_sites_sf, crs_projected)
 # extracting air temp raster values from search monitor points
 
 ########################
-air.extract.2018 = raster::extract(air.2018.raster, search_sites_sf)
+air.extract.2018 = raster::extract(air.2018.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-air.tibble.2018 = cbind(search_sites_sf, air.extract.2018) %>% 
+air.tibble.2018 = cbind(monitor_sites_sf, air.extract.2018) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -140,10 +140,10 @@ air.2018$temperature = air.2018$temperature - 273.15
 
 ########################
 
-air.extract.2019 = raster::extract(air.2019.raster, search_sites_sf)
+air.extract.2019 = raster::extract(air.2019.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-air.tibble.2019 = cbind(search_sites_sf, air.extract.2019) %>% 
+air.tibble.2019 = cbind(monitor_sites_sf, air.extract.2019) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -171,10 +171,10 @@ air.2019$temperature = air.2019$temperature - 273.15
 ########################
 
 # extracting air temp raster values from search monitor points
-air.extract.2020 = raster::extract(air.2020.raster, search_sites_sf)
+air.extract.2020 = raster::extract(air.2020.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-air.tibble.2020 = cbind(search_sites_sf, air.extract.2020) %>% 
+air.tibble.2020 = cbind(monitor_sites_sf, air.extract.2020) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -213,10 +213,10 @@ saveRDS(narr.air, "data/interim/narr_temperature.rds")
 # extracting wind raster values from search monitor points
 
 # extracting raster values from search monitor locations
-uwind.extract.2018 = raster::extract(uwind.2018.raster, search_sites_sf)
+uwind.extract.2018 = raster::extract(uwind.2018.raster, monitor_sites_sf)
 
 #exporting result as a dataframe
-uwind.tibble.2018 = cbind(search_sites_sf, uwind.extract.2018) %>% 
+uwind.tibble.2018 = cbind(monitor_sites_sf, uwind.extract.2018) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -237,10 +237,10 @@ uwind.2018 <- uwind.2018 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting raster values from search monitor locations
-vwind.extract.2018 = raster::extract(vwind.2018.raster, search_sites_sf)
+vwind.extract.2018 = raster::extract(vwind.2018.raster, monitor_sites_sf)
 
 #exporting result as a dataframe
-vwind.tibble.2018 = cbind(search_sites_sf, vwind.extract.2018) %>% 
+vwind.tibble.2018 = cbind(monitor_sites_sf, vwind.extract.2018) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -272,15 +272,78 @@ wind.2018 <- winds_joined2018 %>%
            # (180/pi) <- converts to to degrees from radians
            # (+ 180) <- makes degree range (0, 360) instead of (-180,180)
            paste(((180/pi)*(atan2(u_wind,v_wind))+180))) %>% 
-  mutate(wind_speed = sqrt(u_wind^2+v_wind^2))
+  mutate(wind_speed = sqrt(u_wind^2+v_wind^2)) %>% 
+  mutate(beaufort = ifelse(wind_speed < 0.5, "0",
+                           ifelse(0.5 <= wind_speed & wind_speed < 1.5, "1",
+                                  ifelse(1.5 <= wind_speed & wind_speed < 3.3, "2",
+                                         ifelse(3.3 <= wind_speed & wind_speed < 5.5, "3",
+                                                ifelse(5.5 <= wind_speed & wind_speed < 7.9, "4",
+                                                       ifelse(7.9 <= wind_speed & wind_speed < 10.7, "5",
+                                                              ifelse(10.7 <= wind_speed & wind_speed < 13.8, "6",
+                                                                     ifelse(13.8 <= wind_speed & wind_speed < 17.1, "7",
+                                                                            ifelse(17.1 <= wind_speed & wind_speed < 20.7, "8",
+                                                                                   ifelse(20.7 <= wind_speed & wind_speed < 24.4, "9",
+                                                                                          ifelse(24.4 <= wind_speed & wind_speed < 28.4, "10",
+                                                                                                 ifelse(28.4 <= wind_speed & wind_speed < 32.6, "11",
+                                                                                                        ifelse(wind_speed >= 32.6, "12", "13")
+                                                                                                 )
+                                                                                          )
+                                                                                   )
+                                                                            )
+                                                                     )
+                                                              )
+                                                       )
+                                                )
+                                         )
+                                  )
+                           )
+  )
+  ) %>% mutate(beaufort = as.numeric(beaufort)) %>% 
+  mutate(cardinal_wind =  ifelse(348.75 <= wind_direction & wind_direction < 365, "N",
+                                 ifelse(0 <= wind_direction & wind_direction < 11.25, "N",
+                                        ifelse(11.25 <= wind_direction & wind_direction < 33.75, "NNE",
+                                               ifelse(33.75 <= wind_direction & wind_direction < 56.25, "NE",
+                                                      ifelse(56.25 <= wind_direction & wind_direction < 78.75, "ENE",
+                                                             ifelse(78.75 <= wind_direction & wind_direction < 101.25, "E",
+                                                                    ifelse(101.25 <= wind_direction & wind_direction < 123.75, "ESE",
+                                                                           ifelse(123.75 <= wind_direction & wind_direction < 146.25, "SE",
+                                                                                  ifelse(146.25 <= wind_direction & wind_direction < 168.75, "SSE",
+                                                                                         ifelse(168.75 <= wind_direction & wind_direction < 191.25, "S",
+                                                                                                ifelse(191.25 <= wind_direction & wind_direction < 213.75, "SSW",
+                                                                                                       ifelse(213.75 <= wind_direction & wind_direction < 236.25, "SW",
+                                                                                                              ifelse(236.25 <= wind_direction & wind_direction < 258.75, "WSW",
+                                                                                                                     ifelse(258.75 <= wind_direction & wind_direction < 281.25, "W",
+                                                                                                                            ifelse(281.25 <= wind_direction & wind_direction < 303.75, "WNW",
+                                                                                                                                   ifelse(303.75 <= wind_direction & wind_direction < 326.25, "NW",
+                                                                                                                                          ifelse(326.25 <= wind_direction & wind_direction < 348.75, "NNW", "none")
+                                                                                                                                   )
+                                                                                                                            )
+                                                                                                                     )
+                                                                                                              )
+                                                                                                       )
+                                                                                                )
+                                                                                         )
+                                                                                  )
+                                                                           )
+                                                                    )
+                                                             )
+                                                      )
+                                               )
+                                        )
+                                 )
+  )
+  ) %>% mutate(cardinal_wind = as.character(cardinal_wind))
+  
+                                                                                                                                
+                    
 
 ########################
 
 # extracting raster values from search monitor locations
-uwind.extract.2019 = raster::extract(uwind.2019.raster, search_sites_sf)
+uwind.extract.2019 = raster::extract(uwind.2019.raster, monitor_sites_sf)
 
 #exporting result as a dataframe
-uwind.tibble.2019 = cbind(search_sites_sf, uwind.extract.2019) %>% 
+uwind.tibble.2019 = cbind(monitor_sites_sf, uwind.extract.2019) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -301,10 +364,10 @@ uwind.2019 <- uwind.2019 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting raster values from search monitor locations
-vwind.extract.2019 = raster::extract(vwind.2019.raster, search_sites_sf)
+vwind.extract.2019 = raster::extract(vwind.2019.raster, monitor_sites_sf)
 
 #exporting result as a dataframe
-vwind.tibble.2019 = cbind(search_sites_sf, vwind.extract.2019) %>% 
+vwind.tibble.2019 = cbind(monitor_sites_sf, vwind.extract.2019) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -336,15 +399,76 @@ wind.2019 <- winds_joined2019 %>%
            # (180/pi) <- converts to to degrees from radians
            # (+ 180) <- makes degree range (0, 360) instead of (-180,180)
            paste(((180/pi)*(atan2(u_wind,v_wind))+180))) %>% 
-  mutate(wind_speed = sqrt(u_wind^2+v_wind^2))
+  mutate(wind_speed = sqrt(u_wind^2+v_wind^2)) %>% 
+  mutate(beaufort = ifelse(wind_speed < 0.5, "0",
+                                      ifelse(0.5 <= wind_speed & wind_speed < 1.5, "1",
+                                             ifelse(1.5 <= wind_speed & wind_speed < 3.3, "2",
+                                                    ifelse(3.3 <= wind_speed & wind_speed < 5.5, "3",
+                                                           ifelse(5.5 <= wind_speed & wind_speed < 7.9, "4",
+                                                                  ifelse(7.9 <= wind_speed & wind_speed < 10.7, "5",
+                                                                         ifelse(10.7 <= wind_speed & wind_speed < 13.8, "6",
+                                                                                ifelse(13.8 <= wind_speed & wind_speed < 17.1, "7",
+                                                                                       ifelse(17.1 <= wind_speed & wind_speed < 20.7, "8",
+                                                                                              ifelse(20.7 <= wind_speed & wind_speed < 24.4, "9",
+                                                                                                     ifelse(24.4 <= wind_speed & wind_speed < 28.4, "10",
+                                                                                                            ifelse(28.4 <= wind_speed & wind_speed < 32.6, "11",
+                                                                                                                   ifelse(wind_speed >= 32.6, "12", "13")
+                                                                                                            )
+                                                                                                     )
+                                                                                              )
+                                                                                       )
+                                                                                )
+                                                                         )
+                                                                  )
+                                                           )
+                                                    )
+                                             )
+                                      )
+  )
+  ) %>% mutate(beaufort = as.numeric(beaufort)) %>% 
+  mutate(cardinal_wind =  ifelse(348.75 <= wind_direction & wind_direction < 365, "N",
+                                 ifelse(0 <= wind_direction & wind_direction < 11.25, "N",
+                                        ifelse(11.25 <= wind_direction & wind_direction < 33.75, "NNE",
+                                               ifelse(33.75 <= wind_direction & wind_direction < 56.25, "NE",
+                                                      ifelse(56.25 <= wind_direction & wind_direction < 78.75, "ENE",
+                                                             ifelse(78.75 <= wind_direction & wind_direction < 101.25, "E",
+                                                                    ifelse(101.25 <= wind_direction & wind_direction < 123.75, "ESE",
+                                                                           ifelse(123.75 <= wind_direction & wind_direction < 146.25, "SE",
+                                                                                  ifelse(146.25 <= wind_direction & wind_direction < 168.75, "SSE",
+                                                                                         ifelse(168.75 <= wind_direction & wind_direction < 191.25, "S",
+                                                                                                ifelse(191.25 <= wind_direction & wind_direction < 213.75, "SSW",
+                                                                                                       ifelse(213.75 <= wind_direction & wind_direction < 236.25, "SW",
+                                                                                                              ifelse(236.25 <= wind_direction & wind_direction < 258.75, "WSW",
+                                                                                                                     ifelse(258.75 <= wind_direction & wind_direction < 281.25, "W",
+                                                                                                                            ifelse(281.25 <= wind_direction & wind_direction < 303.75, "WNW",
+                                                                                                                                   ifelse(303.75 <= wind_direction & wind_direction < 326.25, "NW",
+                                                                                                                                          ifelse(326.25 <= wind_direction & wind_direction < 348.75, "NNW", "none")
+                                                                                                                                   )
+                                                                                                                            )
+                                                                                                                     )
+                                                                                                              )
+                                                                                                       )
+                                                                                                )
+                                                                                         )
+                                                                                  )
+                                                                           )
+                                                                    )
+                                                             )
+                                                      )
+                                               )
+                                        )
+                                 )
+  )
+  ) %>% mutate(cardinal_wind = as.character(cardinal_wind))
+                      
 
 ########################
 
 # extracting raster values from search monitor locations
-uwind.extract.2020 = raster::extract(uwind.2020.raster, search_sites_sf)
+uwind.extract.2020 = raster::extract(uwind.2020.raster, monitor_sites_sf)
 
 #exporting result as a dataframe
-uwind.tibble.2020 = cbind(search_sites_sf, uwind.extract.2020) %>% 
+uwind.tibble.2020 = cbind(monitor_sites_sf, uwind.extract.2020) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -365,10 +489,10 @@ uwind.2020 <- uwind.2020 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting raster values from search monitor locations
-vwind.extract.2020 = raster::extract(vwind.2020.raster, search_sites_sf)
+vwind.extract.2020 = raster::extract(vwind.2020.raster, monitor_sites_sf)
 
 #exporting result as a dataframe
-vwind.tibble.2020 = cbind(search_sites_sf, vwind.extract.2020) %>% 
+vwind.tibble.2020 = cbind(monitor_sites_sf, vwind.extract.2020) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -400,7 +524,67 @@ wind.2020 <- winds_joined2020 %>%
            # (180/pi) <- converts to to degrees from radians
            # (+ 180) <- makes degree range (0, 360) instead of (-180,180)
            paste(((180/pi)*(atan2(u_wind,v_wind))+180))) %>% 
-  mutate(wind_speed = sqrt(u_wind^2+v_wind^2))
+  mutate(wind_speed = sqrt(u_wind^2+v_wind^2)) %>% 
+  mutate(beaufort = ifelse(wind_speed < 0.5, "0",
+                           ifelse(0.5 <= wind_speed & wind_speed < 1.5, "1",
+                                  ifelse(1.5 <= wind_speed & wind_speed < 3.3, "2",
+                                         ifelse(3.3 <= wind_speed & wind_speed < 5.5, "3",
+                                                ifelse(5.5 <= wind_speed & wind_speed < 7.9, "4",
+                                                       ifelse(7.9 <= wind_speed & wind_speed < 10.7, "5",
+                                                              ifelse(10.7 <= wind_speed & wind_speed < 13.8, "6",
+                                                                     ifelse(13.8 <= wind_speed & wind_speed < 17.1, "7",
+                                                                            ifelse(17.1 <= wind_speed & wind_speed < 20.7, "8",
+                                                                                   ifelse(20.7 <= wind_speed & wind_speed < 24.4, "9",
+                                                                                          ifelse(24.4 <= wind_speed & wind_speed < 28.4, "10",
+                                                                                                 ifelse(28.4 <= wind_speed & wind_speed < 32.6, "11",
+                                                                                                        ifelse(wind_speed >= 32.6, "12", "13")
+                                                                                                 )
+                                                                                          )
+                                                                                   )
+                                                                            )
+                                                                     )
+                                                              )
+                                                       )
+                                                )
+                                         )
+                                  )
+                           )
+  )
+  ) %>% mutate(beaufort = as.numeric(beaufort)) %>% 
+  mutate(cardinal_wind =  ifelse(348.75 <= wind_direction & wind_direction < 365, "N",
+                                 ifelse(0 <= wind_direction & wind_direction < 11.25, "N",
+                                        ifelse(11.25 <= wind_direction & wind_direction < 33.75, "NNE",
+                                               ifelse(33.75 <= wind_direction & wind_direction < 56.25, "NE",
+                                                      ifelse(56.25 <= wind_direction & wind_direction < 78.75, "ENE",
+                                                             ifelse(78.75 <= wind_direction & wind_direction < 101.25, "E",
+                                                                    ifelse(101.25 <= wind_direction & wind_direction < 123.75, "ESE",
+                                                                           ifelse(123.75 <= wind_direction & wind_direction < 146.25, "SE",
+                                                                                  ifelse(146.25 <= wind_direction & wind_direction < 168.75, "SSE",
+                                                                                         ifelse(168.75 <= wind_direction & wind_direction < 191.25, "S",
+                                                                                                ifelse(191.25 <= wind_direction & wind_direction < 213.75, "SSW",
+                                                                                                       ifelse(213.75 <= wind_direction & wind_direction < 236.25, "SW",
+                                                                                                              ifelse(236.25 <= wind_direction & wind_direction < 258.75, "WSW",
+                                                                                                                     ifelse(258.75 <= wind_direction & wind_direction < 281.25, "W",
+                                                                                                                            ifelse(281.25 <= wind_direction & wind_direction < 303.75, "WNW",
+                                                                                                                                   ifelse(303.75 <= wind_direction & wind_direction < 326.25, "NW",
+                                                                                                                                          ifelse(326.25 <= wind_direction & wind_direction < 348.75, "NNW", "none")
+                                                                                                                                   )
+                                                                                                                            )
+                                                                                                                     )
+                                                                                                              )
+                                                                                                       )
+                                                                                                )
+                                                                                         )
+                                                                                  )
+                                                                           )
+                                                                    )
+                                                             )
+                                                      )
+                                               )
+                                        )
+                                 )
+  )
+  ) %>% mutate(cardinal_wind = as.character(cardinal_wind))
 
 ########################
 
@@ -416,10 +600,10 @@ saveRDS(narr.wind, "data/interim/narr_wind.rds")
 # Creating abedo dataset (2018 - 2020)
 
 # extracting albedo raster values from search monitor points
-albedo.extract.2018 = raster::extract(albedo.2018.raster, search_sites_sf)
+albedo.extract.2018 = raster::extract(albedo.2018.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-albedo.tibble.2018 = cbind(search_sites_sf, albedo.extract.2018) %>% 
+albedo.tibble.2018 = cbind(monitor_sites_sf, albedo.extract.2018) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -440,10 +624,10 @@ albedo.2018 <- albedo.2018 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting albedo raster values from search monitor points
-albedo.extract.2019 = raster::extract(albedo.2019.raster, search_sites_sf)
+albedo.extract.2019 = raster::extract(albedo.2019.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-albedo.tibble.2019 = cbind(search_sites_sf, albedo.extract.2019) %>% 
+albedo.tibble.2019 = cbind(monitor_sites_sf, albedo.extract.2019) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -464,10 +648,10 @@ albedo.2019 <- albedo.2019 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting albedo raster values from search monitor points
-albedo.extract.2020 = raster::extract(albedo.2020.raster, search_sites_sf)
+albedo.extract.2020 = raster::extract(albedo.2020.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-albedo.tibble.2020 = cbind(search_sites_sf, albedo.extract.2020) %>% 
+albedo.tibble.2020 = cbind(monitor_sites_sf, albedo.extract.2020) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -501,10 +685,10 @@ saveRDS(narr.albedo, "data/interim/narr_albedo.rds")
 # Creating precipitation dataset (2018 - 2020)
 
 # extracting precip raster values from search monitor points
-precip.extract.2018 = raster::extract(precip.2018.raster, search_sites_sf)
+precip.extract.2018 = raster::extract(precip.2018.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-precip.tibble.2018 = cbind(search_sites_sf, precip.extract.2018) %>% 
+precip.tibble.2018 = cbind(monitor_sites_sf, precip.extract.2018) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -525,10 +709,10 @@ precip.2018 <- precip.2018 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting precip raster values from search monitor points
-precip.extract.2019 = raster::extract(precip.2019.raster, search_sites_sf)
+precip.extract.2019 = raster::extract(precip.2019.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-precip.tibble.2019 = cbind(search_sites_sf, precip.extract.2019) %>% 
+precip.tibble.2019 = cbind(monitor_sites_sf, precip.extract.2019) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -549,10 +733,10 @@ precip.2019 <- precip.2019 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting precip raster values from search monitor points
-precip.extract.2020 = raster::extract(precip.2020.raster, search_sites_sf)
+precip.extract.2020 = raster::extract(precip.2020.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-precip.tibble.2020 = cbind(search_sites_sf, precip.extract.2020) %>% 
+precip.tibble.2020 = cbind(monitor_sites_sf, precip.extract.2020) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -586,10 +770,10 @@ saveRDS(narr.precip, "data/interim/narr_precip.rds")
 # Creating relative humidity dataset (2018 - 2020)
 
 # extracting rhum raster values from search monitor points
-rhum.extract.2018 = raster::extract(rhum.2018.raster, search_sites_sf)
+rhum.extract.2018 = raster::extract(rhum.2018.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-rhum.tibble.2018 = cbind(search_sites_sf, rhum.extract.2018) %>% 
+rhum.tibble.2018 = cbind(monitor_sites_sf, rhum.extract.2018) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -610,10 +794,10 @@ rhum.2018 <- rhum.2018 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting rhum raster values from search monitor points
-rhum.extract.2019 = raster::extract(rhum.2019.raster, search_sites_sf)
+rhum.extract.2019 = raster::extract(rhum.2019.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-rhum.tibble.2019 = cbind(search_sites_sf, rhum.extract.2019) %>% 
+rhum.tibble.2019 = cbind(monitor_sites_sf, rhum.extract.2019) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -634,10 +818,10 @@ rhum.2019 <- rhum.2019 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting rhum raster values from search monitor points
-rhum.extract.2020 = raster::extract(rhum.2020.raster, search_sites_sf)
+rhum.extract.2020 = raster::extract(rhum.2020.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-rhum.tibble.2020 = cbind(search_sites_sf, rhum.extract.2020) %>% 
+rhum.tibble.2020 = cbind(monitor_sites_sf, rhum.extract.2020) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -671,10 +855,10 @@ saveRDS(narr.rhum, "data/interim/narr_rhum.rds")
 # Creating planetary boundary layer height dataset (2018 - 2020)
 
 # extracting planetary boundary layer height raster values from search monitor points
-pblh.extract.2018 = raster::extract(pblh.2018.raster, search_sites_sf)
+pblh.extract.2018 = raster::extract(pblh.2018.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-pblh.tibble.2018 = cbind(search_sites_sf, pblh.extract.2018) %>% 
+pblh.tibble.2018 = cbind(monitor_sites_sf, pblh.extract.2018) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -695,10 +879,10 @@ pblh.2018 <- pblh.2018 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting planetary boundary layer height raster values from search monitor points
-pblh.extract.2019 = raster::extract(pblh.2019.raster, search_sites_sf)
+pblh.extract.2019 = raster::extract(pblh.2019.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-pblh.tibble.2019 = cbind(search_sites_sf, pblh.extract.2019) %>% 
+pblh.tibble.2019 = cbind(monitor_sites_sf, pblh.extract.2019) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -719,10 +903,10 @@ pblh.2019 <- pblh.2019 %>%
   dplyr::select(-day_of_year, -date1, -date2) 
 
 # extracting planetary boundary layer height raster values from search monitor points
-pblh.extract.2020 = raster::extract(pblh.2020.raster, search_sites_sf)
+pblh.extract.2020 = raster::extract(pblh.2020.raster, monitor_sites_sf)
 
 # exporting result as a dataframe
-pblh.tibble.2020 = cbind(search_sites_sf, pblh.extract.2020) %>% 
+pblh.tibble.2020 = cbind(monitor_sites_sf, pblh.extract.2020) %>% 
   as_tibble() %>%
   dplyr::select(-geometry)
 
@@ -753,7 +937,7 @@ saveRDS(narr.pblh, "data/interim/narr_pblh.rds")
 
 #########################################################################
 
-# creating a super narr dataset!
+# creating a super dataset with all meteorlogical data for monitor sites!
 
 narr <- full_join (narr.air, narr.wind) %>% 
   full_join(., narr.albedo) %>%
@@ -763,6 +947,6 @@ narr <- full_join (narr.air, narr.wind) %>%
 
 # creating a super NARR + search (lat/lon) dataset!
 
-dat <- full_join(narr, search_sites)
+dat <- full_join(narr, monitor_sites)
 
-saveRDS(dat, "data/interim/narr_search.rds")
+saveRDS(dat, "data/interim/monitor_meteorology.rds")
