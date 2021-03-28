@@ -1,6 +1,6 @@
 # getting to know the results of the exposure assessment 
 
-results <- readRDS("data/processed/search_daily_annuli_wind_preproduction.rds")
+results <- readRDS("data/processed/NO2_EPA_AQS_daily_max_90.rds")
 
 ## reading in necessary datasets
 ## creating a dataframe using Wheelabrator lon + lat coordinates 
@@ -14,12 +14,11 @@ wheelabrator_sf <- wheelabrator_address %>%
   st_as_sf(coords = c("x","y"), crs = 4326) %>% 
   mutate(site = "wheelabrator incinerator")
 
-## creating SEARCH pm 2.5 dataset using relevant columns created in 
+## creating  US EPA AQS pollutant dataset using relevant columns created in 
 ##the revised excel file
+NO2_EPA_AQS <- readRDS("data/interim/NO2_EPA_AQS.RDS") %>% 
+  dplyr::select(Site_ID, Date, latitude,	longitude, Daily_Max)
 
-search_pollutants <- read.csv("data/interim/box_site_pm25.csv") %>%
-  dplyr::select(site, box_ID, date, latitude,	longitude, pm25_raw, 
-                pm25_cor, year, month, dow)
 
 ## creating a new dataframe with pm 2.5 daily averages
 pm_raw_avg <- aggregate(pm25_raw ~ box_ID + date, search_pollutants, mean)
@@ -43,11 +42,10 @@ search_pollutants_daily$date <-
 
 saveRDS(search_pollutants_daily, file = "data/interim/search_daily_pm25")
 
-## projecting SEARCH dataset to match NARR data
-## creating the SEARCH monitor-day pollutant 
-##SF object, datum/epsg = WGS 84 in the same projection as the narr datasets
-
-search_pollutants_sf <- search_pollutants_daily %>% 
+## projecting pollutant dataset to match NARR data
+## creating the monitor-day pollutant 
+##SF object, datum/epsg = WGS 84 in the same projection as the narr dataset
+NO2_EPA_AQS_sf <- NO2_EPA_AQS %>% 
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
 
 ## creating a binary variable for exposed monitor-days
@@ -76,7 +74,7 @@ results <- cbind(results, incin_distance)
 results$incin_distance <- as.numeric(as.character(results$incin_distance))
 
 ## creating a vector of each monitor's annuli of exposure
-annuli_field <- colnames(results[10:21])[apply(results[10:21],1,which.max)]
+annuli_field <- colnames(results[6:20])[apply(results[6:20],1,which.max)]
 
 ## creating a column that depicts each monitor's distance from the incin site
 ## creating an annuli column contains the original annuli column name of exposure for each monitor day
@@ -84,7 +82,7 @@ results$annuli_field = annuli_field
 ## creating an annuli column that depicts the annuli name (only) 
 results$annuli = str_sub(results$annuli_field, 29, 36)
 
-## calculating the mean and SD for each annuli bin 
+## calculating the mean pollutant concentration and SD for each annuli bin 
 pm_raw_avg_annuli <- aggregate(pm25_raw ~ annuli, results, mean)
 pm_raw_avg_annuli <- pm_raw_avg_annuli %>% 
   rename(pm25_raw_avg_annuli = pm25_raw)
