@@ -8,6 +8,7 @@
 
 assessExposureAnnuliCountWind <- function(monitor, 
                                           wheelabrator,
+                                          angle,
                                           exp_variable_root){
   
   #.........................................................................
@@ -18,7 +19,8 @@ assessExposureAnnuliCountWind <- function(monitor,
   monitor_lat    <- unlist(map(monitor$geometry, 1))
   monitor_long   <- unlist(map(monitor$geometry, 2))
   wind_direction <- monitor$wind_direction
-
+  # will change based on desired angle degree measurement (I.E. 90, 60, etc.)
+  angle_degree <- as.numeric(angle)/2 
   
   #.........................................................................
   # if there are wells that have dates that intersect with the monitor interval,
@@ -35,7 +37,7 @@ assessExposureAnnuliCountWind <- function(monitor,
   # generates 12 km buffer as a mask around monitor coordinates
   monitor_mask <- monitor %>% 
     st_transform(crs_projected) %>%
-    st_buffer(dist = 12000) %>%
+    st_buffer(dist = 15000) %>%
     st_transform(crs = 4326)
   
     #.......................................................................
@@ -88,6 +90,18 @@ assessExposureAnnuliCountWind <- function(monitor,
       st_transform(crs_projected) %>%
       st_buffer(dist = 12000) %>%
       st_transform(crs = 4326)
+    annulus12to13 <- monitor %>% 
+      st_transform(crs_projected) %>%
+      st_buffer(dist = 13000) %>%
+      st_transform(crs = 4326)
+    annulus13to14 <- monitor %>% 
+      st_transform(crs_projected) %>%
+      st_buffer(dist = 14000) %>%
+      st_transform(crs = 4326)
+    annulus14to15 <- monitor %>% 
+      st_transform(crs_projected) %>%
+      st_buffer(dist = 15000) %>%
+      st_transform(crs = 4326)
     
     #.........................................................................
     ## creates a "wedge" facing towards the upwind origin point (point0)
@@ -112,10 +126,10 @@ assessExposureAnnuliCountWind <- function(monitor,
     # calculating upwind points on either side of the wind direction
     # first point
     upwind_point1 <-
-      matrix(c((monitor_lat  + (((20 / 110.574) / cos(45 * (pi/180))) * 
-                                  cos((wind_direction + 45) * (pi/180)))),
-               (monitor_long + (((20 / 110.574) / cos(45 * (pi/180))) *
-                                  sin((wind_direction + 45) * (pi/180))))),
+      matrix(c((monitor_lat  + (((20 / 110.574) / cos(angle_degree * (pi/180))) * 
+                                  cos((wind_direction + angle_degree) * (pi/180)))),
+               (monitor_long + (((20 / 110.574) / cos(angle_degree * (pi/180))) *
+                                  sin((wind_direction + angle_degree) * (pi/180))))),
              ncol = 2, byrow = TRUE)
     colnames(upwind_point1) <- c('lat', 'long')
     upwind_point1 <- as_tibble(upwind_point1) %>%
@@ -123,10 +137,10 @@ assessExposureAnnuliCountWind <- function(monitor,
     
     # second point
     upwind_point2 <- 
-      matrix(c((monitor_lat + (((20 / 110.574) / cos(45 * (pi/180))) *
-                                 cos((wind_direction - 45) * (pi/180)))),
-               (monitor_long + (((20 / 110.574) / cos(45 * (pi/180)))*
-                                  sin((wind_direction - 45) * (pi/180))))),
+      matrix(c((monitor_lat + (((20 / 110.574) / cos(angle_degree * (pi/180))) *
+                                 cos((wind_direction - angle_degree) * (pi/180)))),
+               (monitor_long + (((20 / 110.574) / cos(angle_degree * (pi/180)))*
+                                  sin((wind_direction - angle_degree) * (pi/180))))),
              ncol = 2, byrow = TRUE)
     colnames(upwind_point2) <- c('lat', 'long')
     upwind_point2 <- as_tibble(upwind_point2) %>%
@@ -160,7 +174,14 @@ assessExposureAnnuliCountWind <- function(monitor,
     #.........................................................................
     
     # finalizes annuli by successively clipping differences in reverse order
+ 
     
+    annulus14to15 <- st_difference(annulus14to15, annulus13to14) %>%
+      st_intersection(upwind_wedge)
+    annulus13to14 <- st_difference(annulus13to14, annulus12to13) %>%
+      st_intersection(upwind_wedge)
+    annulus12to13  <- st_difference(annulus12to13,  annulus11to12) %>%
+      st_intersection(upwind_wedge)
     annulus11to12 <- st_difference(annulus11to12, annulus10to11) %>%
       st_intersection(upwind_wedge)
     annulus10to11 <- st_difference(annulus10to11, annulus9to10) %>%
@@ -210,7 +231,13 @@ assessExposureAnnuliCountWind <- function(monitor,
              !!as.name(paste(exp_variable_root, sep = "", "10to11km")) := 
                sum(unlist(st_intersects(wheelabrator, annulus10to11))),
              !!as.name(paste(exp_variable_root, sep = "", "11to12km")) := 
-               sum(unlist(st_intersects(wheelabrator, annulus11to12)))) %>%
+               sum(unlist(st_intersects(wheelabrator, annulus11to12))),
+             !!as.name(paste(exp_variable_root, sep = "", "12to13km")) := 
+               sum(unlist(st_intersects(wheelabrator, annulus12to13))),
+             !!as.name(paste(exp_variable_root, sep = "", "13to14km")) := 
+               sum(unlist(st_intersects(wheelabrator, annulus13to14))),
+             !!as.name(paste(exp_variable_root, sep = "", "14to15km")) := 
+               sum(unlist(st_intersects(wheelabrator, annulus14to15)))) %>%
       as_tibble() %>% 
 #      select(-geometry) %>%
       mutate(date = monitor_date)
