@@ -98,7 +98,7 @@ for (i in c(1:nrow(data_in))) {  #### activate the appropriate line here
     assessExposureAnnuliCountWind(data_in[i, ], 
                                   wheelabrator_sf,
                                   # input desired angle for exposure wedge, keep ""s
-                                  "90", 
+                                  "30", 
                                    "upwind_from_search_monitors_")
   
   # prints the index value to track progress of the loop
@@ -109,5 +109,5 @@ for (i in c(1:nrow(data_in))) {  #### activate the appropriate line here
 data_out <- do.call("rbind", temporary_stopgap_dataframe)
 
 saveRDS(data_out,
-        "data/processed/PM25_SEARCH_daily_mean_90.rds")
+        "data/processed/PM25_SEARCH_daily_mean_30.rds")
 

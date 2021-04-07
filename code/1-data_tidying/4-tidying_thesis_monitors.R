@@ -139,24 +139,26 @@ saveRDS(PM25_MDE_AQS, file = "data/interim/PM25_MDE_AQS.RDS")
 ## creating the SEARCH multipollutant wireless box dataset using 
 ## relevant columns created in the revised excel file
 
-PM25_SEARCH_0 <- read.csv("data/interim/box_site_pm25.csv") %>%
-  dplyr::select(site, box_ID, date, latitude,	longitude, pm25_raw)
+dat1b <- read.csv("data/interim/topCompressed_CombineSite_ABHI_All_PM25_Combined_EDT.csv") %>% 
+  dplyr::select(-Box_ID)
+dat1 <- dat1a %>% 
+  left_join(dat1b,by = c("Box_ID"="Phy_Box", "Data_Name")) %>% 
+  mutate(PM25 = as.numeric(values),
+         date = substr(Date, 1, 9),
+         date = as.Date(Date, format = "%m/%d/%Y")) %>% 
+  dplyr::select(-Object_ID, -values, -ind) 
+  
 
-## creating a new dataframe with pm 2.5 daily averages
-pm25_daily_avg_SEARCH <- aggregate(pm25_raw ~ box_ID + date, PM25_SEARCH_0, mean)
+pm25_daily_avg_SEARCH <- aggregate(PM25 ~ Data_Name + date, dat1, mean)
 
-## creating a dataframe based on pm 2.5 daily observations for each monitor-day
-PM25_SEARCH <- PM25_SEARCH_0 %>% 
-  dplyr::select(-pm25_raw) %>% 
-  left_join(pm25_daily_avg_SEARCH,by = c("box_ID", "date")) %>% 
-  mutate(PM25_mgm3_mean = pm25_raw) %>% 
-  dplyr::select(-pm25_raw)
+PM25_SEARCH <- dat1 %>% 
+  dplyr::select(-PM25) %>% 
+  left_join(pm25_daily_avg_SEARCH,by = c("date", "Data_Name")) %>% 
+  mutate(PM25_mgm3_mean = PM25) %>% 
+  dplyr::select(-PM25, -Date)
 
 PM25_SEARCH <- unique(PM25_SEARCH)
+PM25_SEARCH <- na.omit(PM25_SEARCH)
 
-# converts date column to date class
-PM25_SEARCH$date <-
-  PM25_SEARCH$date %>%
-  as.Date(format = "%Y-%m-%d")  # forms date
+saveRDS(PM25_SEARCH, file = "data/interim/PM25_SEARCH_18-20.RDS")
 
-saveRDS(PM25_SEARCH, file = "data/interim/PM25_SEARCH.RDS")
